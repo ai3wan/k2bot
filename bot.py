@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 import logging
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 from config import BOT_TOKEN
 
 # Настройка логирования
@@ -33,12 +33,10 @@ WELCOME_MESSAGE = """💼 USDT для бизнеса по договору
 # Создание клавиатуры с кнопками
 def get_main_keyboard():
     keyboard = [
-        [InlineKeyboardButton("📊 Бухгалтерия и налоги", callback_data="accounting")],
-        [InlineKeyboardButton("📋 Как проходит сделка", callback_data="process")],
-        [InlineKeyboardButton("👤 Написать менеджеру", callback_data="manager")],
-        [InlineKeyboardButton("🌍 Перейти на сайт K2 Crypto", url="https://k2crypto.m70.capital/")]
+        ["📊 Бухгалтерия и налоги", "📋 Как проходит сделка"],
+        ["👤 Написать менеджеру", "🌍 Перейти на сайт K2 Crypto"]
     ]
-    return InlineKeyboardMarkup(keyboard)
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True, one_time_keyboard=False)
 
 # Обработчик команды /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -52,16 +50,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
         parse_mode='HTML'
     )
 
-# Обработчик нажатий на кнопки
-async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Обрабатывает нажатия на кнопки меню"""
-    query = update.callback_query
-    await query.answer()
+# Обработчик текстовых сообщений (нажатий на кнопки)
+async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """Обрабатывает текстовые сообщения и нажатия на кнопки меню"""
+    user = update.effective_user
+    message_text = update.message.text
     
-    user = query.from_user
-    logger.info(f"Пользователь {user.id} нажал кнопку: {query.data}")
+    logger.info(f"Пользователь {user.id} отправил сообщение: {message_text}")
     
-    if query.data == "accounting":
+    if message_text == "📊 Бухгалтерия и налоги":
         response = """📊 <b>Бухгалтерия и налоги</b>
 
 Наши специалисты помогут вам:
@@ -72,7 +69,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 💬 Для получения консультации напишите нашему менеджеру"""
         
-    elif query.data == "process":
+    elif message_text == "📋 Как проходит сделка":
         response = """📋 <b>Как проходит сделка</b>
 
 Процесс покупки USDT для бизнеса:
@@ -85,7 +82,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 
 ⚡️ Вся процедура занимает от 30 минут до 2 часов"""
         
-    elif query.data == "manager":
+    elif message_text == "👤 Написать менеджеру":
         response = """👤 <b>Написать менеджеру</b>
 
 Наши менеджеры готовы ответить на все ваши вопросы:
@@ -97,10 +94,27 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE) ->
 🕐 <b>Работаем:</b> 24/7
 ⚡️ <b>Ответим в течение:</b> 5 минут"""
         
+    elif message_text == "🌍 Перейти на сайт K2 Crypto":
+        response = """🌍 <b>Перейти на сайт K2 Crypto</b>
+
+🔗 <b>Наш сайт:</b> https://k2crypto.m70.capital/
+
+На сайте вы найдете:
+• Подробную информацию об услугах
+• Калькулятор курсов
+• Форму для заявки
+• Контактную информацию
+
+💬 Или просто напишите нашему менеджеру для быстрой консультации!"""
+        
     else:
-        response = "❌ Неизвестная команда"
+        response = """❓ Не понимаю ваше сообщение.
+
+Пожалуйста, используйте кнопки меню ниже или команды:
+/start - Главное меню
+/help - Справка"""
     
-    await query.edit_message_text(
+    await update.message.reply_text(
         text=response,
         parse_mode='HTML',
         reply_markup=get_main_keyboard()
@@ -132,7 +146,7 @@ def main() -> None:
     # Добавляем обработчики команд
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("help", help_command))
-    application.add_handler(CallbackQueryHandler(button_callback))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
     # Запускаем бота
     logger.info("Запуск бота...")
